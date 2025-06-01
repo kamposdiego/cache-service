@@ -15,11 +15,8 @@ public class IdempotentService extends IdempotentServiceGrpc.IdempotentServiceIm
     private final RedisService redisService;
 
     @Override
-    public void existsById(IdempotentExistsRequest request, StreamObserver<IdempotentExistsReply> responseObserver) {
-        IdempotentExistsReply reply = IdempotentExistsReply.newBuilder()
-                .setExists(redisService.exists(request.getId()))
-                .build();
-        responseObserver.onNext(reply);
+    public void getByXIdempotencyKey(IdempotentByXIdempotencyRequest request, StreamObserver<IdempotentReply> responseObserver) {
+        responseObserver.onNext(redisService.getByXIdempotencyId(request.getXIdempotencyKey()));
         responseObserver.onCompleted();
     }
 
@@ -28,4 +25,5 @@ public class IdempotentService extends IdempotentServiceGrpc.IdempotentServiceIm
         responseObserver.onNext(redisService.createPostRequest(request.getId()));
         responseObserver.onCompleted();
     }
+
 }

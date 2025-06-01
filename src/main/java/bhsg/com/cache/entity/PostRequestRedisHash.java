@@ -10,6 +10,8 @@ import org.springframework.data.redis.core.TimeToLive;
 public class PostRequestRedisHash {
 
     @Id
+    private String xIdempotencyId;
+
     private String id;
 
     @TimeToLive

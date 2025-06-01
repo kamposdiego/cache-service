@@ -23,21 +23,29 @@ public class RedisService {
 
     private static final String FIND_OPERATION = "find";
     private static final String PERSIST_OPERATION = "persist";
-    private static final String LOG_MESSAGE_FOR_REDIS = "{} {}{} Failed to {} request ID {} - {}";
+    private static final String LOG_MESSAGE_FOR_REDIS = "{} {}{} Failed to {} X-Idempotency-ID {} - {}";
 
     private final PostRequestRepository postRequestRepository;
 
-    public Boolean exists(final String requestId){
+    public IdempotentReply getByXIdempotencyId(final String xIdempotencyId){
         try {
-            return postRequestRepository.existsById(requestId);
+            final var idempotency = postRequestRepository.findById(xIdempotencyId);
+
+            if(idempotency.isPresent()){
+                final var request = idempotency.get();
+
+                return IdempotentReply.newBuilder().setId(request.getId()).setXIdempotencyKey(request.getXIdempotencyId()).build();
+            } else {
+                return IdempotentReply.newBuilder().build();
+            }
         } catch (RedisConnectionFailureException redisConnectionFailureException) {
-            log.error(LOG_MESSAGE_FOR_REDIS, LoggingConstants.Symbols.ERROR, LoggingConstants.Tags.REDIS, LoggingConstants.Tags.IDEMPOTENT, FIND_OPERATION, requestId, trace(), redisConnectionFailureException);
+            log.error(LOG_MESSAGE_FOR_REDIS, LoggingConstants.Symbols.ERROR, LoggingConstants.Tags.REDIS, LoggingConstants.Tags.IDEMPOTENT, FIND_OPERATION, xIdempotencyId, trace(), redisConnectionFailureException);
             throw new RedisServiceUnavailableException("Redis server is down or unreachable", redisConnectionFailureException);
         } catch (final SerializationException serializationException){
-            log.error(LOG_MESSAGE_FOR_REDIS, LoggingConstants.Symbols.ERROR, LoggingConstants.Tags.REDIS, LoggingConstants.Tags.IDEMPOTENT, FIND_OPERATION, requestId, trace(), serializationException);
+            log.error(LOG_MESSAGE_FOR_REDIS, LoggingConstants.Symbols.ERROR, LoggingConstants.Tags.REDIS, LoggingConstants.Tags.IDEMPOTENT, FIND_OPERATION, xIdempotencyId, trace(), serializationException);
             throw new RedisSerializationException("Can’t (de)serialize an object", serializationException);
         } catch (final RedisSystemException redisSystemException){
-            log.error(LOG_MESSAGE_FOR_REDIS, LoggingConstants.Symbols.ERROR, LoggingConstants.Tags.REDIS, LoggingConstants.Tags.IDEMPOTENT, FIND_OPERATION, requestId, trace(), redisSystemException);
+            log.error(LOG_MESSAGE_FOR_REDIS, LoggingConstants.Symbols.ERROR, LoggingConstants.Tags.REDIS, LoggingConstants.Tags.IDEMPOTENT, FIND_OPERATION, xIdempotencyId, trace(), redisSystemException);
             throw new RedisErrorDuringSavingException("General Redis failures", redisSystemException);
         }
     }
